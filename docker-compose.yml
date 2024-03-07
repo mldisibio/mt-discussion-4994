@@ -1,0 +1,81 @@
+version: "3.8"
+services:
+  rabbitmq:
+    image: masstransit/rabbitmq
+    hostname: rabbitmq-4994
+    volumes:
+      - rabbitmq-var:/var/lib/rabbitmq
+      - rabbitmq-etc:/etc/rabbitmq
+    ports:
+      - "15682:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10    
+    networks: 
+      - demo-ntwk
+
+  redis-primary:
+    image: redis:7.0
+    command: ["redis-server", "--save", "20", "5", "--databases", "1", "--dbfilename", "demo_primary.rdb"]
+    ports:
+      - "7001:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - demo-ntwk
+
+  redis-branch:
+    image: redis:7.0
+    command: ["redis-server", "--save", "20", "5", "--databases", "1", "--dbfilename", "demo_branch.rdb"]
+    ports:
+      - "7002:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - demo-ntwk
+
+  redis-jobs:
+    image: redis:7.0
+    command: ["redis-server", "--save", "20", "5", "--databases", "1", "--dbfilename", "demo_jobs.rdb"]
+    ports:
+      - "7003:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - demo-ntwk
+
+  msgbus:
+    image: discussion_4994/msgbus
+    build:
+      context: ./discussion_4994
+      dockerfile: Dockerfile
+    networks:
+      - demo-ntwk
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+networks:
+  demo-ntwk:
+
+volumes:
+  rabbitmq-var:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/data/rmq/var
+  rabbitmq-etc:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/data/rmq/etc
+  redis-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/data/redis/data
